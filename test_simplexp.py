@@ -18,3 +18,4 @@ print(var('x') - var('x'))
 
 print('--- SIMPLIFICATION ---')
 test_simplify(var('x') - var('x'))
+test_simplify(var('x') - var('x') + var('y'))

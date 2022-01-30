@@ -87,7 +87,8 @@ class Expr:
         return str(self)
 
     def __del__(self):
-        _lib.simplexp_free_expr(self._inner)
+        if self._inner:
+            _lib.simplexp_free_expr(self._inner)
 
 
 def var(name: str):
