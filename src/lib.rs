@@ -10,6 +10,7 @@ use std::fmt::{Debug, Formatter};
 use std::os::raw::c_char;
 use std::panic::catch_unwind;
 use std::ptr::null;
+use std::sync::Arc;
 
 #[derive(FromPrimitive)]
 pub enum ExprOpId {
@@ -44,94 +45,94 @@ pub enum ExprOp {
         name: String,
     },
     Add {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Mul {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Div {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Fdiv {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Mod {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Pow {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Eq {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Neq {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Lt {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Lte {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Gt {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Gte {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     BAnd {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     BOr {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Not {
-        a: Box<ExprPart>,
+        a: Arc<ExprPart>,
     },
     Neg {
-        a: Box<ExprPart>,
+        a: Arc<ExprPart>,
     },
     BInvert {
-        a: Box<ExprPart>,
+        a: Arc<ExprPart>,
     },
     Min {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Max {
-        a: Box<ExprPart>,
-        b: Box<ExprPart>,
+        a: Arc<ExprPart>,
+        b: Arc<ExprPart>,
     },
     Abs {
-        a: Box<ExprPart>,
+        a: Arc<ExprPart>,
     },
     Inf,
     ToStr {
-        a: Box<ExprPart>,
+        a: Arc<ExprPart>,
     },
     // #[serde(rename_all = "camelCase")]
     MeasureTextX {
-        text: Box<ExprPart>,
-        font_size: Box<ExprPart>,
+        text: Arc<ExprPart>,
+        font_size: Arc<ExprPart>,
     },
     // #[serde(rename_all = "camelCase")]
     MeasureTextY {
-        text: Box<ExprPart>,
-        font_size: Box<ExprPart>,
+        text: Arc<ExprPart>,
+        font_size: Arc<ExprPart>,
     },
 }
 
@@ -205,7 +206,7 @@ pub extern "C" fn simplexp_new_var(name: *const c_char) -> *const ExprPart {
     catch_unwind(|| {
         let name: &str = std::str::from_utf8(unsafe { CStr::from_ptr(name).to_bytes() }).unwrap();
 
-        Box::into_raw(Box::new(ExprPart::Operation(ExprOp::Var {
+        Arc::into_raw(Arc::new(ExprPart::Operation(ExprOp::Var {
             name: name.to_string(),
         }))) as *const ExprPart
     })
@@ -223,9 +224,8 @@ pub extern "C" fn simplexp_new_op(
     _child5: *const ExprPart,
 ) -> *const ExprPart {
     catch_unwind(|| {
-        fn clone_child(expr: *const ExprPart) -> Box<ExprPart> {
-            let prev_expr = unsafe { expr.as_ref().unwrap() };
-            Box::new(prev_expr.clone())
+        fn clone_child(expr: *const ExprPart) -> Arc<ExprPart> {
+            unsafe { Arc::clone_from_ptr(expr) }
         }
         let op_id: ExprOpId = FromPrimitive::from_i32(op_id).unwrap();
         let expr = ExprPart::Operation(match op_id {
@@ -318,7 +318,7 @@ pub extern "C" fn simplexp_new_op(
             },
         });
 
-        Box::into_raw(Box::new(expr)) as *const ExprPart
+        Arc::into_raw(Arc::new(expr)) as *const ExprPart
     })
     .unwrap_or(null())
 }
@@ -327,9 +327,10 @@ pub extern "C" fn simplexp_new_op(
 #[no_mangle]
 pub extern "C" fn simplexp_simplify(expr: *const ExprPart) -> *const ExprPart {
     catch_unwind(|| {
-        let prev_expr = unsafe { expr.as_ref().unwrap() };
+        assert!(!expr.is_null());
+        let prev_expr = unsafe { Arc::clone_from_ptr(expr) };
         let optimized = optimizer::optimize(prev_expr);
-        Box::into_raw(optimized) as *const ExprPart
+        Arc::into_raw(optimized) as *const ExprPart
     })
     .unwrap_or(null())
 }
@@ -346,7 +347,7 @@ pub extern "C" fn simplexp_new_float(value: f32) -> *const ExprPart {
             ExprPart::Operation(ExprOp::Inf)
         };
 
-        Box::into_raw(Box::new(expr)) as *const ExprPart
+        Arc::into_raw(Arc::new(expr)) as *const ExprPart
     })
     .unwrap_or(null())
 }
@@ -354,7 +355,7 @@ pub extern "C" fn simplexp_new_float(value: f32) -> *const ExprPart {
 /// Creates a new int (i64) literal.
 #[no_mangle]
 pub extern "C" fn simplexp_new_int(value: i64) -> *const ExprPart {
-    catch_unwind(|| Box::into_raw(Box::new(ExprPart::IntLiteral(value))) as *const ExprPart)
+    catch_unwind(|| Arc::into_raw(Arc::new(ExprPart::IntLiteral(value))) as *const ExprPart)
         .unwrap_or(null())
 }
 
@@ -367,7 +368,7 @@ pub extern "C" fn simplexp_new_str(value: *const u8, length: usize) -> *const Ex
         }
         let string =
             unsafe { std::str::from_utf8(std::slice::from_raw_parts(value, length)) }.unwrap();
-        Box::into_raw(Box::new(ExprPart::StringLiteral(string.to_string()))) as *const ExprPart
+        Arc::into_raw(Arc::new(ExprPart::StringLiteral(string.to_string()))) as *const ExprPart
     })
     .unwrap_or(null())
 }
@@ -382,7 +383,7 @@ pub struct VecInner {
 
 /// Formats an expression into a string.
 #[no_mangle]
-pub extern "C" fn simplexp_format_expr(expr: *mut ExprPart) -> VecInner {
+pub extern "C" fn simplexp_format_expr(expr: *const ExprPart) -> VecInner {
     catch_unwind(|| {
         let expr = unsafe { (expr as *const ExprPart).as_ref().unwrap() };
         let (ptr, len, cap) = format!("{:?}", expr).into_bytes().into_raw_parts();
@@ -406,7 +407,7 @@ pub extern "C" fn simplexp_free_str(inner: VecInner) {
         if inner.ptr.is_null() {
             return;
         }
-        drop(unsafe { Vec::from_raw_parts(inner.ptr as *mut u8, inner.len, inner.cap) });
+        let _ = unsafe { Vec::from_raw_parts(inner.ptr as *mut u8, inner.len, inner.cap) };
     });
 }
 
@@ -414,9 +415,21 @@ pub extern "C" fn simplexp_free_str(inner: VecInner) {
 #[no_mangle]
 pub extern "C" fn simplexp_free_expr(expr: *const ExprPart) {
     let _ = catch_unwind(|| {
-        if expr.is_null() {
-            return;
-        }
-        drop(unsafe { Box::from_raw(expr as *mut ExprPart) });
+        assert!(!expr.is_null());
+        let _ = unsafe { Arc::from_raw(expr as *mut ExprPart) };
     });
+}
+
+trait CloneFromPtr<T> {
+    unsafe fn clone_from_ptr(ptr: *const T) -> Self;
+}
+
+impl<T> CloneFromPtr<T> for Arc<T> {
+    unsafe fn clone_from_ptr(ptr: *const T) -> Self {
+        assert!(!ptr.is_null());
+        let original = Arc::from_raw(ptr);
+        let copy = original.clone();
+        let _ = Arc::into_raw(original);
+        copy
+    }
 }

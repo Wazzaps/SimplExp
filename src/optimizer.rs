@@ -1,15 +1,16 @@
 use crate::{ExprOp, ExprPart};
+use std::sync::Arc;
 
-pub fn optimize(expr: &ExprPart) -> Box<ExprPart> {
-    Box::new(match expr {
+pub fn optimize(expr: Arc<ExprPart>) -> Arc<ExprPart> {
+    match &*expr {
         ExprPart::Operation(op) => match op {
-            ExprOp::Var { .. } => expr.clone(),
+            ExprOp::Var { .. } => expr,
             ExprOp::Add { a, b } => match (&**a, &**b) {
                 // Optimization: x - x ≡ 0
                 (a, ExprPart::Operation(ExprOp::Neg { a: b })) if a.eq(b) => {
-                    ExprPart::IntLiteral(0)
+                    Arc::new(ExprPart::IntLiteral(0))
                 }
-                (_, _) => expr.clone(),
+                (_, _) => expr,
             },
             ExprOp::Mul { a, b } => unimplemented!(),
             ExprOp::Div { a, b } => unimplemented!(),
@@ -30,11 +31,11 @@ pub fn optimize(expr: &ExprPart) -> Box<ExprPart> {
             ExprOp::Min { a, b } => unimplemented!(),
             ExprOp::Max { a, b } => unimplemented!(),
             ExprOp::Abs { a } => unimplemented!(),
-            ExprOp::Inf => expr.clone(),
+            ExprOp::Inf => expr,
             ExprOp::ToStr { a } => unimplemented!(),
             ExprOp::MeasureTextX { text, font_size } => unimplemented!(),
             ExprOp::MeasureTextY { text, font_size } => unimplemented!(),
         },
-        _ => expr.clone(),
-    })
+        _ => expr,
+    }
 }
