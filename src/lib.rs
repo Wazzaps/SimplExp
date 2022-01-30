@@ -5,6 +5,7 @@ mod optimizer;
 use konst::{primitive::parse_u32, unwrap_ctx};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
+use serde::Serialize;
 use std::ffi::CStr;
 use std::fmt::{Debug, Formatter};
 use std::os::raw::c_char;
@@ -28,18 +29,18 @@ pub enum ExprOpId {
     Gte = 12,
     BAnd = 13,
     BOr = 14,
-    Not = 15,
-    Neg = 16,
-    BInvert = 17,
-    Min = 18,
-    Max = 19,
-    Abs = 20,
-    ToStr = 21,
-    MeasureTextX = 22,
-    MeasureTextY = 23,
+    Neg = 15,
+    BInvert = 16,
+    Min = 17,
+    Max = 18,
+    Abs = 19,
+    ToStr = 20,
+    MeasureTextX = 21,
+    MeasureTextY = 22,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Clone, PartialEq)]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum ExprOp {
     Var {
         name: String,
@@ -100,9 +101,6 @@ pub enum ExprOp {
         a: Arc<ExprPart>,
         b: Arc<ExprPart>,
     },
-    Not {
-        a: Arc<ExprPart>,
-    },
     Neg {
         a: Arc<ExprPart>,
     },
@@ -124,21 +122,20 @@ pub enum ExprOp {
     ToStr {
         a: Arc<ExprPart>,
     },
-    // #[serde(rename_all = "camelCase")]
+    #[serde(rename_all = "camelCase")]
     MeasureTextX {
         text: Arc<ExprPart>,
         font_size: Arc<ExprPart>,
     },
-    // #[serde(rename_all = "camelCase")]
+    #[serde(rename_all = "camelCase")]
     MeasureTextY {
         text: Arc<ExprPart>,
         font_size: Arc<ExprPart>,
     },
 }
 
-// #[derive(Deserialize, Debug)]
-// #[serde(untagged)]
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Clone, PartialEq)]
+#[serde(untagged)]
 pub enum ExprPart {
     IntLiteral(i64),
     FloatLiteral(f32),
@@ -164,7 +161,6 @@ impl Debug for ExprOp {
             ExprOp::Gte { a, b } => write!(f, "({:?} >= {:?})", a, b),
             ExprOp::BAnd { a, b } => write!(f, "({:?} & {:?})", a, b),
             ExprOp::BOr { a, b } => write!(f, "({:?} | {:?})", a, b),
-            ExprOp::Not { a } => write!(f, "!{:?}", a),
             ExprOp::Neg { a } => write!(f, "-{:?}", a),
             ExprOp::BInvert { a } => write!(f, "~{:?}", a),
             ExprOp::Min { a, b } => write!(f, "min({:?}, {:?})", a, b),
@@ -285,9 +281,6 @@ pub extern "C" fn simplexp_new_op(
                 a: clone_child(child1),
                 b: clone_child(child2),
             },
-            ExprOpId::Not => ExprOp::Not {
-                a: clone_child(child1),
-            },
             ExprOpId::Neg => ExprOp::Neg {
                 a: clone_child(child1),
             },
@@ -400,7 +393,26 @@ pub extern "C" fn simplexp_format_expr(expr: *const ExprPart) -> VecInner {
     })
 }
 
-/// Frees a string allocated by `simplexp_format_expr`.
+/// Serialize an expression into a JSON string.
+#[no_mangle]
+pub extern "C" fn simplexp_serialize_expr(expr: *const ExprPart) -> VecInner {
+    catch_unwind(|| {
+        let expr = unsafe { (expr as *const ExprPart).as_ref().unwrap() };
+        let (ptr, len, cap) = serde_json::to_vec(expr).unwrap().into_raw_parts();
+        VecInner {
+            ptr: ptr as *const u8,
+            len,
+            cap,
+        }
+    })
+    .unwrap_or(VecInner {
+        ptr: null(),
+        len: 0,
+        cap: 0,
+    })
+}
+
+/// Frees a string allocated by `simplexp_format_expr` or `simplexp_serialize_expr`.
 #[no_mangle]
 pub extern "C" fn simplexp_free_str(inner: VecInner) {
     let _ = catch_unwind(|| {
@@ -418,6 +430,16 @@ pub extern "C" fn simplexp_free_expr(expr: *const ExprPart) {
         assert!(!expr.is_null());
         let _ = unsafe { Arc::from_raw(expr as *mut ExprPart) };
     });
+}
+
+/// Creates a copy of the given expression.
+#[no_mangle]
+pub extern "C" fn simplexp_clone_expr(expr: *const ExprPart) -> *const ExprPart {
+    catch_unwind(|| {
+        assert!(!expr.is_null());
+        unsafe { Arc::into_raw(Arc::clone_from_ptr(expr)) as *const ExprPart }
+    })
+    .unwrap_or(null())
 }
 
 trait CloneFromPtr<T> {
