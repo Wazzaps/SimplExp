@@ -1,13 +1,17 @@
 #![feature(vec_into_raw_parts)]
 
+mod optimizer;
+
 use konst::{primitive::parse_u32, unwrap_ctx};
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 use std::ffi::CStr;
 use std::fmt::{Debug, Formatter};
 use std::os::raw::c_char;
 use std::panic::catch_unwind;
 use std::ptr::null;
 
-#[non_exhaustive]
+#[derive(FromPrimitive)]
 pub enum ExprOpId {
     Add = 1,
     Mul = 2,
@@ -34,6 +38,7 @@ pub enum ExprOpId {
     MeasureTextY = 23,
 }
 
+#[derive(Clone, PartialEq)]
 pub enum ExprOp {
     Var {
         name: String,
@@ -132,6 +137,7 @@ pub enum ExprOp {
 
 // #[derive(Deserialize, Debug)]
 // #[serde(untagged)]
+#[derive(Clone, PartialEq)]
 pub enum ExprPart {
     IntLiteral(i64),
     FloatLiteral(f32),
@@ -206,7 +212,129 @@ pub extern "C" fn simplexp_new_var(name: *const c_char) -> *const ExprPart {
     .unwrap_or(null())
 }
 
-/// Creates a new float (f32) literal
+/// Wraps the expression(s) in an operation.
+#[no_mangle]
+pub extern "C" fn simplexp_new_op(
+    op_id: i32,
+    child1: *const ExprPart,
+    child2: *const ExprPart,
+    _child3: *const ExprPart,
+    _child4: *const ExprPart,
+    _child5: *const ExprPart,
+) -> *const ExprPart {
+    catch_unwind(|| {
+        fn clone_child(expr: *const ExprPart) -> Box<ExprPart> {
+            let prev_expr = unsafe { expr.as_ref().unwrap() };
+            Box::new(prev_expr.clone())
+        }
+        let op_id: ExprOpId = FromPrimitive::from_i32(op_id).unwrap();
+        let expr = ExprPart::Operation(match op_id {
+            ExprOpId::Add => ExprOp::Add {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Mul => ExprOp::Mul {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Div => ExprOp::Div {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Fdiv => ExprOp::Fdiv {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Mod => ExprOp::Mod {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Pow => ExprOp::Pow {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Eq => ExprOp::Eq {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Neq => ExprOp::Neq {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Lt => ExprOp::Lt {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Lte => ExprOp::Lte {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Gt => ExprOp::Gt {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Gte => ExprOp::Gte {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::BAnd => ExprOp::BAnd {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::BOr => ExprOp::BOr {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Not => ExprOp::Not {
+                a: clone_child(child1),
+            },
+            ExprOpId::Neg => ExprOp::Neg {
+                a: clone_child(child1),
+            },
+            ExprOpId::BInvert => ExprOp::BInvert {
+                a: clone_child(child1),
+            },
+            ExprOpId::Min => ExprOp::Min {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Max => ExprOp::Max {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Abs => ExprOp::Abs {
+                a: clone_child(child1),
+            },
+            ExprOpId::ToStr => ExprOp::ToStr {
+                a: clone_child(child1),
+            },
+            ExprOpId::MeasureTextX => ExprOp::MeasureTextX {
+                text: clone_child(child1),
+                font_size: clone_child(child2),
+            },
+            ExprOpId::MeasureTextY => ExprOp::MeasureTextY {
+                text: clone_child(child1),
+                font_size: clone_child(child2),
+            },
+        });
+
+        Box::into_raw(Box::new(expr)) as *const ExprPart
+    })
+    .unwrap_or(null())
+}
+
+/// Creates a simplified expression from the given expression.
+#[no_mangle]
+pub extern "C" fn simplexp_simplify(expr: *const ExprPart) -> *const ExprPart {
+    catch_unwind(|| {
+        let prev_expr = unsafe { expr.as_ref().unwrap() };
+        let optimized = optimizer::optimize(prev_expr);
+        Box::into_raw(optimized) as *const ExprPart
+    })
+    .unwrap_or(null())
+}
+
+/// Creates a new float (f32) literal.
 #[no_mangle]
 pub extern "C" fn simplexp_new_float(value: f32) -> *const ExprPart {
     catch_unwind(|| {
@@ -284,11 +412,11 @@ pub extern "C" fn simplexp_free_str(inner: VecInner) {
 
 /// Frees an expression allocated by the `simplexp_new_*` functions.
 #[no_mangle]
-pub extern "C" fn simplexp_free_expr(expr: *mut ExprPart) {
+pub extern "C" fn simplexp_free_expr(expr: *const ExprPart) {
     let _ = catch_unwind(|| {
         if expr.is_null() {
             return;
         }
-        drop(unsafe { Box::from_raw(expr) });
+        drop(unsafe { Box::from_raw(expr as *mut ExprPart) });
     });
 }

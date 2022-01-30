@@ -4,6 +4,30 @@ import math
 
 LIB_VERSION = (_lib.SIMPLEXP_VERSION_MAJOR, _lib.SIMPLEXP_VERSION_MINOR, _lib.SIMPLEXP_VERSION_PATCH)
 
+ExprOpId_Add = 1
+ExprOpId_Mul = 2
+ExprOpId_Div = 3
+ExprOpId_Fdiv = 4
+ExprOpId_Mod = 5
+ExprOpId_Pow = 6
+ExprOpId_Eq = 7
+ExprOpId_Neq = 8
+ExprOpId_Lt = 9
+ExprOpId_Lte = 10
+ExprOpId_Gt = 11
+ExprOpId_Gte = 12
+ExprOpId_BAnd = 13
+ExprOpId_BOr = 14
+ExprOpId_Not = 15
+ExprOpId_Neg = 16
+ExprOpId_BInvert = 17
+ExprOpId_Min = 18
+ExprOpId_Max = 19
+ExprOpId_Abs = 20
+ExprOpId_ToStr = 21
+ExprOpId_MeasureTextX = 22
+ExprOpId_MeasureTextY = 23
+
 
 class Expr:
     def __init__(self, value: Expr | int | float | str | _ffi.CData):
@@ -26,11 +50,41 @@ class Expr:
 
         assert self._inner, 'Failed to create expression'
 
+    @staticmethod
+    def wrap(expr: Expr | int | float | str):
+        if isinstance(expr, Expr):
+            return expr
+        else:
+            return Expr(expr)
+
+    def simplify(self):
+        return Expr(_lib.simplexp_simplify(self._inner))
+
+    def __add__(self, other: Expr | int | float | str):
+        other = Expr.wrap(other)
+        return Expr(_lib.simplexp_new_op(
+            ExprOpId_Add, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
+        ))
+
+    def __sub__(self, other: Expr | int | float | str):
+        other = -Expr.wrap(other)
+        return Expr(_lib.simplexp_new_op(
+            ExprOpId_Add, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
+        ))
+
+    def __neg__(self):
+        return Expr(_lib.simplexp_new_op(
+            ExprOpId_Neg, self._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL, _ffi.NULL
+        ))
+
     def __str__(self):
         vec = _lib.simplexp_format_expr(self._inner)
         formatted = str(_ffi.buffer(vec.ptr, vec.len), 'utf8')
         _lib.simplexp_free_str(vec)
         return formatted
+
+    def __repr__(self):
+        return str(self)
 
     def __del__(self):
         _lib.simplexp_free_expr(self._inner)
