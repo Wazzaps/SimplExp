@@ -13,14 +13,11 @@ jobs:
       - uses: actions/checkout@v1
       - name: Install nightly rust
         run: curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
-      # Insert steps here to install you other dependencies. Note that you're running inside of cent os 7, not ubuntu
-      - name: Installing custom dependency
-        run: pip install cffi
       - name: Build
         run: |
           source $HOME/.cargo/env
           for PYBIN in /opt/python/cp3[6789]*/bin; do
-            "${PYBIN}/pip" install maturin
+            "${PYBIN}/pip" install maturin cffi
             "${PYBIN}/maturin" build -i "${PYBIN}/python" --release -o dist --manylinux 2014
           done
       - name: Upload wheels
