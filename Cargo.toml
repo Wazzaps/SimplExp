@@ -9,3 +9,4 @@ name = "simplexp"
 crate-type = ["cdylib"]
 
 [dependencies]
+konst = "0.2.13"

@@ -1,8 +1,8 @@
 from __future__ import annotations
-
+from .simplexp import lib as _lib, ffi as _ffi
 import math
 
-from .simplexp import lib as _lib, ffi as _ffi
+LIB_VERSION = (_lib.SIMPLEXP_VERSION_MAJOR, _lib.SIMPLEXP_VERSION_MINOR, _lib.SIMPLEXP_VERSION_PATCH)
 
 
 class Expr:
@@ -38,4 +38,3 @@ class Expr:
 
 def var(name: str):
     return Expr(_lib.simplexp_new_var(bytes(name, 'utf-8')))
-

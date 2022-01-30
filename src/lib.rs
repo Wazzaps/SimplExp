@@ -1,13 +1,39 @@
 #![feature(vec_into_raw_parts)]
 
+use konst::{primitive::parse_u32, unwrap_ctx};
 use std::ffi::CStr;
 use std::fmt::{Debug, Formatter};
 use std::os::raw::c_char;
 use std::panic::catch_unwind;
 use std::ptr::null;
 
-// #[derive(Deserialize, Debug)]
-// #[serde(tag = "type", rename_all = "camelCase")]
+#[non_exhaustive]
+pub enum ExprOpId {
+    Add = 1,
+    Mul = 2,
+    Div = 3,
+    Fdiv = 4,
+    Mod = 5,
+    Pow = 6,
+    Eq = 7,
+    Neq = 8,
+    Lt = 9,
+    Lte = 10,
+    Gt = 11,
+    Gte = 12,
+    BAnd = 13,
+    BOr = 14,
+    Not = 15,
+    Neg = 16,
+    BInvert = 17,
+    Min = 18,
+    Max = 19,
+    Abs = 20,
+    ToStr = 21,
+    MeasureTextX = 22,
+    MeasureTextY = 23,
+}
+
 pub enum ExprOp {
     Var {
         name: String,
@@ -160,6 +186,13 @@ impl Debug for ExprPart {
     }
 }
 
+#[no_mangle]
+pub static SIMPLEXP_VERSION_MAJOR: u32 = unwrap_ctx!(parse_u32(env!("CARGO_PKG_VERSION_MAJOR")));
+#[no_mangle]
+pub static SIMPLEXP_VERSION_MINOR: u32 = unwrap_ctx!(parse_u32(env!("CARGO_PKG_VERSION_MINOR")));
+#[no_mangle]
+pub static SIMPLEXP_VERSION_PATCH: u32 = unwrap_ctx!(parse_u32(env!("CARGO_PKG_VERSION_PATCH")));
+
 /// Creates a new variable binding.
 #[no_mangle]
 pub extern "C" fn simplexp_new_var(name: *const c_char) -> *const ExprPart {
@@ -176,8 +209,18 @@ pub extern "C" fn simplexp_new_var(name: *const c_char) -> *const ExprPart {
 /// Creates a new float (f32) literal
 #[no_mangle]
 pub extern "C" fn simplexp_new_float(value: f32) -> *const ExprPart {
-    catch_unwind(|| Box::into_raw(Box::new(ExprPart::FloatLiteral(value))) as *const ExprPart)
-        .unwrap_or(null())
+    catch_unwind(|| {
+        assert!(!value.is_nan());
+
+        let expr = if f32::is_finite(value) {
+            ExprPart::FloatLiteral(value)
+        } else {
+            ExprPart::Operation(ExprOp::Inf)
+        };
+
+        Box::into_raw(Box::new(expr)) as *const ExprPart
+    })
+    .unwrap_or(null())
 }
 
 /// Creates a new int (i64) literal.
