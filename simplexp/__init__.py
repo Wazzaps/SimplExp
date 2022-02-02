@@ -57,9 +57,6 @@ class Expr:
         else:
             return Expr(expr)
 
-    def simplify(self):
-        return Expr(_lib.simplexp_simplify(self._inner))
-
     def min(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
         return Expr(_lib.simplexp_new_op(
@@ -268,7 +265,6 @@ class Expr:
     @staticmethod
     def to_dict(expr: Expr | int | float | str):
         if isinstance(expr, Expr):
-            expr = expr.simplify()
             vec = _lib.simplexp_serialize_expr(expr._inner)
             deserialized = json.loads(bytes(_ffi.buffer(vec.ptr, vec.len)))
             _lib.simplexp_free_str(vec)

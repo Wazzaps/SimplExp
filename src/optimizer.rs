@@ -1,8 +1,7 @@
 use crate::{ExprOp, ExprPart};
 use std::sync::Arc;
 
-fn optimize_single(expr: Arc<ExprPart>) -> Arc<ExprPart> {
-    // println!("optimize_single: {:?}", expr);
+pub fn optimize(expr: Arc<ExprPart>) -> Arc<ExprPart> {
     match &*expr {
         ExprPart::Operation(op) => match op {
             ExprOp::Var { .. } => expr,
@@ -37,30 +36,51 @@ fn optimize_single(expr: Arc<ExprPart>) -> Arc<ExprPart> {
                     ExprPart::Operation(ExprOp::Add { a: left, b: right }),
                     ExprPart::IntLiteral(b),
                 ) => match &**right {
-                    ExprPart::IntLiteral(v) => Arc::new(ExprPart::Operation(ExprOp::Add {
-                        a: left.clone(),
-                        b: Arc::new(ExprPart::IntLiteral(v + b)),
-                    })),
-                    ExprPart::FloatLiteral(v) => Arc::new(ExprPart::Operation(ExprOp::Add {
-                        a: left.clone(),
-                        b: Arc::new(ExprPart::FloatLiteral(v + *b as f32)),
-                    })),
+                    ExprPart::IntLiteral(v) => {
+                        optimize(Arc::new(ExprPart::Operation(ExprOp::Add {
+                            a: left.clone(),
+                            b: Arc::new(ExprPart::IntLiteral(v + b)),
+                        })))
+                    }
+                    ExprPart::FloatLiteral(v) => {
+                        optimize(Arc::new(ExprPart::Operation(ExprOp::Add {
+                            a: left.clone(),
+                            b: Arc::new(ExprPart::FloatLiteral(v + *b as f32)),
+                        })))
+                    }
                     _ => expr,
                 },
                 (
                     ExprPart::Operation(ExprOp::Add { a: left, b: right }),
                     ExprPart::FloatLiteral(b),
                 ) => match &**right {
-                    ExprPart::IntLiteral(v) => Arc::new(ExprPart::Operation(ExprOp::Add {
-                        a: left.clone(),
-                        b: Arc::new(ExprPart::FloatLiteral(*v as f32 + b)),
-                    })),
-                    ExprPart::FloatLiteral(v) => Arc::new(ExprPart::Operation(ExprOp::Add {
-                        a: left.clone(),
-                        b: Arc::new(ExprPart::FloatLiteral(v + b)),
-                    })),
+                    ExprPart::IntLiteral(v) => {
+                        optimize(Arc::new(ExprPart::Operation(ExprOp::Add {
+                            a: left.clone(),
+                            b: Arc::new(ExprPart::FloatLiteral(*v as f32 + b)),
+                        })))
+                    }
+                    ExprPart::FloatLiteral(v) => {
+                        optimize(Arc::new(ExprPart::Operation(ExprOp::Add {
+                            a: left.clone(),
+                            b: Arc::new(ExprPart::FloatLiteral(v + b)),
+                        })))
+                    }
                     _ => expr,
                 },
+
+                // Optimization: a + x ≡ x + a
+                // This activates the rest of the optimization rules above
+                (ExprPart::IntLiteral(_), ExprPart::Operation(_)) => {
+                    optimize(Arc::new(ExprPart::Operation(ExprOp::Add {
+                        a: b.clone(),
+                        b: a.clone(),
+                    })))
+                }
+
+                // Optimization: x + inf ≡ inf
+                (_, ExprPart::Operation(ExprOp::Inf)) => Arc::new(ExprPart::Operation(ExprOp::Inf)),
+                (ExprPart::Operation(ExprOp::Inf), _) => Arc::new(ExprPart::Operation(ExprOp::Inf)),
 
                 (_, _) => expr,
             },
@@ -99,7 +119,7 @@ fn optimize_single(expr: Arc<ExprPart>) -> Arc<ExprPart> {
 
                 // Optimization: (x + x) // 2 ≡ x // 1
                 (ExprPart::Operation(ExprOp::Add { a, b }), ExprPart::IntLiteral(2)) if a.eq(b) => {
-                    optimize_single(Arc::new(ExprPart::Operation(ExprOp::Fdiv {
+                    optimize(Arc::new(ExprPart::Operation(ExprOp::Fdiv {
                         a: a.clone(),
                         b: Arc::new(ExprPart::IntLiteral(1)),
                     })))
@@ -119,122 +139,31 @@ fn optimize_single(expr: Arc<ExprPart>) -> Arc<ExprPart> {
             // ExprOp::BOr { a, b } => unimplemented!(),
             // ExprOp::Not { a } => unimplemented!(),
             ExprOp::Neg { a } => match &**a {
-                // Optimization: -0 ≡ 0
-                ExprPart::IntLiteral(0) => Arc::new(ExprPart::IntLiteral(0)),
-                ExprPart::FloatLiteral(v) if v.eq(&0.0) => Arc::new(ExprPart::IntLiteral(0)),
+                // Optimization: -a ≡ -a
+                ExprPart::IntLiteral(v) => Arc::new(ExprPart::IntLiteral(-*v)),
+                ExprPart::FloatLiteral(v) => Arc::new(ExprPart::FloatLiteral(-*v)),
 
                 _ => expr,
             },
             // ExprOp::BInvert { a } => unimplemented!(),
-            // ExprOp::Min { a, b } => unimplemented!(),
-            // ExprOp::Max { a, b } => unimplemented!(),
+            ExprOp::Min { a, b } => match (&**a, &**b) {
+                // Optimization: min(x, inf) ≡ inf
+                (_, ExprPart::Operation(ExprOp::Inf)) => a.clone(),
+                (ExprPart::Operation(ExprOp::Inf), _) => b.clone(),
+                (_, _) => expr,
+            },
+            ExprOp::Max { a, b } => match (&**a, &**b) {
+                // Optimization: max(x, inf) ≡ x
+                (_, ExprPart::Operation(ExprOp::Inf)) => Arc::new(ExprPart::Operation(ExprOp::Inf)),
+                (ExprPart::Operation(ExprOp::Inf), _) => Arc::new(ExprPart::Operation(ExprOp::Inf)),
+                (_, _) => expr,
+            },
             // ExprOp::Abs { a } => unimplemented!(),
             // ExprOp::Inf => expr,
             // ExprOp::ToStr { a } => unimplemented!(),
             // ExprOp::MeasureTextX { text, font_size } => unimplemented!(),
             // ExprOp::MeasureTextY { text, font_size } => unimplemented!(),
             _ => expr,
-        },
-        _ => expr,
-    }
-}
-
-pub fn optimize(expr: Arc<ExprPart>) -> Arc<ExprPart> {
-    // println!("optimize: {:?}", expr);
-    match &*expr {
-        ExprPart::Operation(op) => match op {
-            ExprOp::Var { .. } => expr,
-            ExprOp::Add { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Add {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Mul { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Mul {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Div { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Div {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Fdiv { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Fdiv {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Mod { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Mod {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Pow { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Pow {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Eq { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Eq {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Neq { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Neq {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Lt { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Lt {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Lte { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Lte {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Gt { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Gt {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Gte { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Gte {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::BAnd { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::BAnd {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::BOr { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::BOr {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Neg { a } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Neg {
-                a: optimize(a.clone()),
-            }))),
-            ExprOp::BInvert { a } => {
-                optimize_single(Arc::new(ExprPart::Operation(ExprOp::BInvert {
-                    a: optimize(a.clone()),
-                })))
-            }
-            ExprOp::Min { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Min {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Max { a, b } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Max {
-                a: optimize(a.clone()),
-                b: optimize(b.clone()),
-            }))),
-            ExprOp::Abs { a } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::Abs {
-                a: optimize(a.clone()),
-            }))),
-            ExprOp::Inf => expr,
-            ExprOp::ToStr { a } => optimize_single(Arc::new(ExprPart::Operation(ExprOp::ToStr {
-                a: optimize(a.clone()),
-            }))),
-            ExprOp::MeasureTextX { text, font_size } => {
-                optimize_single(Arc::new(ExprPart::Operation(ExprOp::MeasureTextX {
-                    text: optimize(text.clone()),
-                    font_size: optimize(font_size.clone()),
-                })))
-            }
-            ExprOp::MeasureTextY { text, font_size } => {
-                optimize_single(Arc::new(ExprPart::Operation(ExprOp::MeasureTextY {
-                    text: optimize(text.clone()),
-                    font_size: optimize(font_size.clone()),
-                })))
-            }
         },
         _ => expr,
     }

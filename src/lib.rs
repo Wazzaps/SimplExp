@@ -311,19 +311,7 @@ pub extern "C" fn simplexp_new_op(
             },
         });
 
-        Arc::into_raw(Arc::new(expr)) as *const ExprPart
-    })
-    .unwrap_or(null())
-}
-
-/// Creates a simplified expression from the given expression.
-#[no_mangle]
-pub extern "C" fn simplexp_simplify(expr: *const ExprPart) -> *const ExprPart {
-    catch_unwind(|| {
-        assert!(!expr.is_null());
-        let prev_expr = unsafe { Arc::clone_from_ptr(expr) };
-        let optimized = optimizer::optimize(prev_expr);
-        Arc::into_raw(optimized) as *const ExprPart
+        Arc::into_raw(optimizer::optimize(Arc::new(expr))) as *const ExprPart
     })
     .unwrap_or(null())
 }
