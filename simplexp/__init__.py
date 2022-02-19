@@ -28,18 +28,19 @@ ExprOpId_Abs = 19
 ExprOpId_ToStr = 20
 ExprOpId_MeasureTextX = 21
 ExprOpId_MeasureTextY = 22
+ExprOpId_If = 23
 
 
 class Oplist:
-    def __init__(self, initial_expr: Optional[Expr] = None):
+    def __init__(self, initial_expr: Optional[Expr | int | float | str] = None):
         self._inner = _lib.simplexp_oplist_new()
         assert self._inner, 'Failed to create oplist'
 
-        if initial_expr:
+        if initial_expr is not None:
             self.append(initial_expr)
 
-    def append(self, expr: Expr) -> int:
-        return _lib.simplexp_oplist_append(self._inner, expr._inner)
+    def append(self, expr: Expr | int | float | str) -> int:
+        return _lib.simplexp_oplist_append(self._inner, Expr.wrap(expr)._inner)
 
     def __del__(self):
         if self._inner:
@@ -70,6 +71,8 @@ class Expr:
         elif isinstance(value, str):
             value = value.encode('utf8')
             self._inner = _lib.simplexp_str_new(_ffi.from_buffer(value), len(value))
+        else:
+            raise ValueError('Cannot encode value of type {}'.format(type(value)))
 
         assert self._inner, 'Failed to create expression'
 
@@ -210,6 +213,15 @@ class Expr:
         font_size = Expr.wrap(font_size)
         return Expr(_lib.simplexp_op_new(
             ExprOpId_MeasureTextY, text._inner, font_size._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
+        ))
+
+    @staticmethod
+    def if_(cond: Expr | int, t: Expr | int | float | str, f: Expr | int | float | str):
+        cond = Expr.wrap(cond)
+        t = Expr.wrap(t)
+        f = Expr.wrap(f)
+        return Expr(_lib.simplexp_op_new(
+            ExprOpId_If, cond._inner, t._inner, f._inner, _ffi.NULL, _ffi.NULL
         ))
 
     def __str__(self):

@@ -328,5 +328,14 @@ define_ops! {
             font_size: ExprPart = child2,
         },
         format: "measureTextY(text={text:?}, fontSize={font_size:?})",
+    },
+    If: {
+        id: 23,
+        fields: {
+            cond: ExprPart = child1,
+            t: ExprPart = child2,
+            f: ExprPart = child3,
+        },
+        format: "if ({cond:?}) {{{t:?}}} else {{{f:?}}}",
     }
 }
