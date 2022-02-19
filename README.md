@@ -7,7 +7,7 @@ Used in [BoldUI](https://github.com/Wazzaps/boldui).
 ## Example
 
 ```python
-from simplexp import var, Expr
+from simplexp import var, Expr, Oplist
 
 # Simplification:
 expr = ((var('x') + var('x')) / 2 + 10)
@@ -15,6 +15,14 @@ print(expr)  # => (x + 10)
 
 # Serialization:
 print(Expr.to_dict(expr))  # => {'type': 'add', 'a': {'type': 'var', 'name': 'x'}, 'b': 10}
+
+# Serialization into operation list:
+print(Oplist(var('x') + var('y')).to_list())  # => 
+# [
+#   {'type': 'var', 'name': 'x'},
+#   {'type': 'var', 'name': 'y'},
+#   {'type': 'add', 'a': 0, 'b': 1}
+# ]
 
 # Values are kept as values (when optimized successfully):
 print(Expr.to_dict(Expr(100) + 200))  # => 300
