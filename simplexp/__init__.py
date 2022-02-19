@@ -272,6 +272,16 @@ class Expr:
         else:
             return expr
 
+    @staticmethod
+    def to_ops_dict(expr: Expr | int | float | str):
+        if isinstance(expr, Expr):
+            vec = _lib.simplexp_serialize_expr_ops(expr._inner)
+            deserialized = json.loads(bytes(_ffi.buffer(vec.ptr, vec.len)))
+            _lib.simplexp_free_str(vec)
+            return deserialized
+        else:
+            return expr
+
 
 def var(name: str):
     return Expr(_lib.simplexp_new_var(bytes(name, 'utf-8')))
