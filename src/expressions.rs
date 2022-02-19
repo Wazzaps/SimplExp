@@ -133,91 +133,91 @@ pub enum ExprOpRef {
         name: String,
     },
     Add {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Mul {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Div {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Fdiv {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Mod {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Pow {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Eq {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Neq {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Lt {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Lte {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Gt {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Gte {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     BAnd {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     BOr {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Neg {
-        a: ExprPartRef,
+        a: usize,
     },
     BInvert {
-        a: ExprPartRef,
+        a: usize,
     },
     Min {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Max {
-        a: ExprPartRef,
-        b: ExprPartRef,
+        a: usize,
+        b: usize,
     },
     Abs {
-        a: ExprPartRef,
+        a: usize,
     },
     Inf,
     ToStr {
-        a: ExprPartRef,
+        a: usize,
     },
     #[serde(rename_all = "camelCase")]
     MeasureTextX {
-        text: ExprPartRef,
-        font_size: ExprPartRef,
+        text: usize,
+        font_size: usize,
     },
     #[serde(rename_all = "camelCase")]
     MeasureTextY {
-        text: ExprPartRef,
-        font_size: ExprPartRef,
+        text: usize,
+        font_size: usize,
     },
 }
 
@@ -228,7 +228,7 @@ pub enum ExprPartRef {
     #[serde(with = "F32Def")]
     FloatLiteral(F32),
     StringLiteral(String),
-    Operation(usize),
+    Operation(ExprOpRef),
 }
 
 #[derive(Serialize)]
