@@ -35,100 +35,14 @@ pub extern "C" fn simplexp_op_new(
     op_id: i32,
     child1: *const ExprPart,
     child2: *const ExprPart,
-    _child3: *const ExprPart,
-    _child4: *const ExprPart,
-    _child5: *const ExprPart,
+    child3: *const ExprPart,
+    child4: *const ExprPart,
+    child5: *const ExprPart,
 ) -> *const ExprPart {
     catch_unwind(|| {
-        fn clone_child(expr: *const ExprPart) -> Arc<ExprPart> {
-            unsafe { Arc::clone_from_ptr(expr) }
-        }
         let op_id: ExprOpId = FromPrimitive::from_i32(op_id).unwrap();
-        let expr = ExprPart::Operation(match op_id {
-            ExprOpId::Add => ExprOp::Add {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Mul => ExprOp::Mul {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Div => ExprOp::Div {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Fdiv => ExprOp::Fdiv {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Mod => ExprOp::Mod {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Pow => ExprOp::Pow {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Eq => ExprOp::Eq {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Neq => ExprOp::Neq {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Lt => ExprOp::Lt {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Lte => ExprOp::Lte {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Gt => ExprOp::Gt {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Gte => ExprOp::Gte {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::BAnd => ExprOp::BAnd {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::BOr => ExprOp::BOr {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Neg => ExprOp::Neg {
-                a: clone_child(child1),
-            },
-            ExprOpId::BInvert => ExprOp::BInvert {
-                a: clone_child(child1),
-            },
-            ExprOpId::Min => ExprOp::Min {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Max => ExprOp::Max {
-                a: clone_child(child1),
-                b: clone_child(child2),
-            },
-            ExprOpId::Abs => ExprOp::Abs {
-                a: clone_child(child1),
-            },
-            ExprOpId::ToStr => ExprOp::ToStr {
-                a: clone_child(child1),
-            },
-            ExprOpId::MeasureTextX => ExprOp::MeasureTextX {
-                text: clone_child(child1),
-                font_size: clone_child(child2),
-            },
-            ExprOpId::MeasureTextY => ExprOp::MeasureTextY {
-                text: clone_child(child1),
-                font_size: clone_child(child2),
-            },
+        let expr = ExprPart::Operation(unsafe {
+            ExprOp::from_ffi_children(op_id, child1, child2, child3, child4, child5)
         });
 
         Arc::into_raw(optimizer::optimize(Arc::new(expr)))
@@ -301,7 +215,7 @@ pub extern "C" fn simplexp_oplist_free(oplist: *const ()) {
     });
 }
 
-trait CloneFromPtr<T> {
+pub(crate) trait CloneFromPtr<T> {
     unsafe fn clone_from_ptr(ptr: *const T) -> Self;
 }
 

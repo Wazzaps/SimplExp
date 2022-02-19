@@ -1,3 +1,4 @@
+use crate::c_api::CloneFromPtr;
 use crate::operation_list::OperationList;
 use eq_float::F32;
 use num_derive::FromPrimitive;
@@ -324,6 +325,108 @@ impl ExprOp {
             ExprOp::MeasureTextY { text, font_size } => ExprOpRef::MeasureTextY {
                 text: oplist.add(text),
                 font_size: oplist.add(font_size),
+            },
+        }
+    }
+
+    /// # Safety
+    ///
+    /// All children must be valid ExprParts created from `simplexp_{var,int,float,string,op}_new`
+    pub unsafe fn from_ffi_children(
+        op_id: ExprOpId,
+        child1: *const ExprPart,
+        child2: *const ExprPart,
+        _child3: *const ExprPart,
+        _child4: *const ExprPart,
+        _child5: *const ExprPart,
+    ) -> ExprOp {
+        fn clone_child(expr: *const ExprPart) -> Arc<ExprPart> {
+            unsafe { Arc::clone_from_ptr(expr) }
+        }
+        match op_id {
+            ExprOpId::Add => ExprOp::Add {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Mul => ExprOp::Mul {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Div => ExprOp::Div {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Fdiv => ExprOp::Fdiv {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Mod => ExprOp::Mod {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Pow => ExprOp::Pow {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Eq => ExprOp::Eq {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Neq => ExprOp::Neq {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Lt => ExprOp::Lt {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Lte => ExprOp::Lte {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Gt => ExprOp::Gt {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Gte => ExprOp::Gte {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::BAnd => ExprOp::BAnd {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::BOr => ExprOp::BOr {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Neg => ExprOp::Neg {
+                a: clone_child(child1),
+            },
+            ExprOpId::BInvert => ExprOp::BInvert {
+                a: clone_child(child1),
+            },
+            ExprOpId::Min => ExprOp::Min {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Max => ExprOp::Max {
+                a: clone_child(child1),
+                b: clone_child(child2),
+            },
+            ExprOpId::Abs => ExprOp::Abs {
+                a: clone_child(child1),
+            },
+            ExprOpId::ToStr => ExprOp::ToStr {
+                a: clone_child(child1),
+            },
+            ExprOpId::MeasureTextX => ExprOp::MeasureTextX {
+                text: clone_child(child1),
+                font_size: clone_child(child2),
+            },
+            ExprOpId::MeasureTextY => ExprOp::MeasureTextY {
+                text: clone_child(child1),
+                font_size: clone_child(child2),
             },
         }
     }
