@@ -1,4 +1,4 @@
-use crate::{ExprOp, ExprPart};
+use crate::expressions::{ExprOp, ExprPart};
 use std::sync::Arc;
 
 pub fn optimize(expr: Arc<ExprPart>) -> Arc<ExprPart> {
