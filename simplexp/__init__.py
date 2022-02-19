@@ -29,24 +29,43 @@ ExprOpId_MeasureTextX = 21
 ExprOpId_MeasureTextY = 22
 
 
+class Oplist:
+    def __init__(self):
+        self._inner = _lib.simplexp_oplist_new()
+        assert self._inner, 'Failed to create oplist'
+
+    def append(self, expr: Expr) -> int:
+        return _lib.simplexp_oplist_append(self._inner, expr._inner)
+
+    def __del__(self):
+        if self._inner:
+            _lib.simplexp_oplist_free(self._inner)
+
+    def to_list(self):
+        vec = _lib.simplexp_oplist_serialize(self._inner)
+        deserialized = json.loads(bytes(_ffi.buffer(vec.ptr, vec.len)))
+        _lib.simplexp_str_free(vec)
+        return deserialized
+
+
 class Expr:
     def __init__(self, value: Expr | int | float | str | _ffi.CData):
         if isinstance(value, _ffi.CData):
             self._inner = value
         elif isinstance(value, Expr):
-            self._inner = _lib.simplexp_clone_expr(value._inner)
+            self._inner = _lib.simplexp_expr_clone(value._inner)
         elif value is None:
             raise ValueError('Cannot encode null values')
         elif isinstance(value, float):
             if math.isnan(value):
                 raise ValueError('Cannot encode NaN values')
             else:
-                self._inner = _lib.simplexp_new_float(value)
+                self._inner = _lib.simplexp_float_new(value)
         elif isinstance(value, int):
-            self._inner = _lib.simplexp_new_int(value)
+            self._inner = _lib.simplexp_int_new(value)
         elif isinstance(value, str):
             value = value.encode('utf8')
-            self._inner = _lib.simplexp_new_str(_ffi.from_buffer(value), len(value))
+            self._inner = _lib.simplexp_str_new(_ffi.from_buffer(value), len(value))
 
         assert self._inner, 'Failed to create expression'
 
@@ -59,117 +78,117 @@ class Expr:
 
     def min(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Min, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def max(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Max, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __add__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Add, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __sub__(self, other: Expr | int | float | str):
         other = -Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Add, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __mul__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Mul, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __mod__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Mod, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __truediv__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Div, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __floordiv__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Fdiv, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __or__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_BOr, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __and__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_BAnd, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __gt__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Gt, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __ge__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Gte, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __lt__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Lt, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __le__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Lte, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __eq__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Eq, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __ne__(self, other: Expr | int | float | str):
         other = Expr.wrap(other)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Neq, self._inner, other._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __neg__(self):
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Neg, self._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __invert__(self):
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_BInvert, self._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __abs__(self):
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_Abs, self._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def to_str(self):
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_ToStr, self._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
@@ -177,7 +196,7 @@ class Expr:
     def measure_text_x(text: Expr | str, font_size: Expr | int | float):
         text = Expr.wrap(text)
         font_size = Expr.wrap(font_size)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_MeasureTextX, text._inner, font_size._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
@@ -185,14 +204,14 @@ class Expr:
     def measure_text_y(text: Expr | str, font_size: Expr | int | float):
         text = Expr.wrap(text)
         font_size = Expr.wrap(font_size)
-        return Expr(_lib.simplexp_new_op(
+        return Expr(_lib.simplexp_op_new(
             ExprOpId_MeasureTextY, text._inner, font_size._inner, _ffi.NULL, _ffi.NULL, _ffi.NULL
         ))
 
     def __str__(self):
-        vec = _lib.simplexp_format_expr(self._inner)
+        vec = _lib.simplexp_expr_format(self._inner)
         formatted = str(_ffi.buffer(vec.ptr, vec.len)[:], 'utf8')
-        _lib.simplexp_free_str(vec)
+        _lib.simplexp_str_free(vec)
         return formatted
 
     def __repr__(self):
@@ -200,7 +219,7 @@ class Expr:
 
     def __del__(self):
         if self._inner:
-            _lib.simplexp_free_expr(self._inner)
+            _lib.simplexp_expr_free(self._inner)
 
     @staticmethod
     def from_dict(obj: dict):
@@ -265,23 +284,13 @@ class Expr:
     @staticmethod
     def to_dict(expr: Expr | int | float | str):
         if isinstance(expr, Expr):
-            vec = _lib.simplexp_serialize_expr(expr._inner)
+            vec = _lib.simplexp_expr_serialize(expr._inner)
             deserialized = json.loads(bytes(_ffi.buffer(vec.ptr, vec.len)))
-            _lib.simplexp_free_str(vec)
-            return deserialized
-        else:
-            return expr
-
-    @staticmethod
-    def to_ops_dict(expr: Expr | int | float | str):
-        if isinstance(expr, Expr):
-            vec = _lib.simplexp_serialize_expr_ops(expr._inner)
-            deserialized = json.loads(bytes(_ffi.buffer(vec.ptr, vec.len)))
-            _lib.simplexp_free_str(vec)
+            _lib.simplexp_str_free(vec)
             return deserialized
         else:
             return expr
 
 
 def var(name: str):
-    return Expr(_lib.simplexp_new_var(bytes(name, 'utf-8')))
+    return Expr(_lib.simplexp_var_new(bytes(name, 'utf-8')))
