@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 from .simplexp import lib as _lib, ffi as _ffi
 import json
 import math
@@ -30,9 +31,12 @@ ExprOpId_MeasureTextY = 22
 
 
 class Oplist:
-    def __init__(self):
+    def __init__(self, initial_expr: Optional[Expr] = None):
         self._inner = _lib.simplexp_oplist_new()
         assert self._inner, 'Failed to create oplist'
+
+        if initial_expr:
+            self.append(initial_expr)
 
     def append(self, expr: Expr) -> int:
         return _lib.simplexp_oplist_append(self._inner, expr._inner)
