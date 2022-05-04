@@ -40,7 +40,8 @@ class Oplist:
             self.append(initial_expr)
 
     def append(self, expr: Expr | int | float | str) -> int:
-        return _lib.simplexp_oplist_append(self._inner, Expr.wrap(expr)._inner)
+        expr = Expr.wrap(expr)
+        return _lib.simplexp_oplist_append(self._inner, expr._inner)
 
     def __del__(self):
         if self._inner:
