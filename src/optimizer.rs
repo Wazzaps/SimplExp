@@ -150,12 +150,96 @@ pub fn optimize(expr: Arc<ExprPart>) -> Arc<ExprPart> {
                 // Optimization: min(x, inf) ≡ inf
                 (_, ExprPart::Operation(ExprOp::Inf)) => a.clone(),
                 (ExprPart::Operation(ExprOp::Inf), _) => b.clone(),
+
+                // Optimization: min(x, y) ≡ min(x, y)
+                (ExprPart::IntLiteral(a), ExprPart::IntLiteral(b)) => {
+                    Arc::new(ExprPart::IntLiteral((*a).min(*b)))
+                }
+                (ExprPart::FloatLiteral(a), ExprPart::IntLiteral(b)) => {
+                    Arc::new(ExprPart::FloatLiteral((*a).min(*b as f64)))
+                }
+                (ExprPart::IntLiteral(a), ExprPart::FloatLiteral(b)) => {
+                    Arc::new(ExprPart::FloatLiteral((*a as f64).min(*b)))
+                }
+                (ExprPart::FloatLiteral(a), ExprPart::FloatLiteral(b)) => {
+                    Arc::new(ExprPart::FloatLiteral((*a).min(*b)))
+                }
+
                 (_, _) => expr,
             },
-            ExprOp::Max { a, b } => match (&**a, &**b) {
+            ExprOp::Max {
+                a: a_expr,
+                b: b_expr,
+            } => match (&**a_expr, &**b_expr) {
                 // Optimization: max(x, inf) ≡ x
                 (_, ExprPart::Operation(ExprOp::Inf)) => Arc::new(ExprPart::Operation(ExprOp::Inf)),
                 (ExprPart::Operation(ExprOp::Inf), _) => Arc::new(ExprPart::Operation(ExprOp::Inf)),
+
+                // Optimization: max(x, y) ≡ max(x, y)
+                (ExprPart::IntLiteral(a), ExprPart::IntLiteral(b)) => {
+                    Arc::new(ExprPart::IntLiteral((*a).max(*b)))
+                }
+                (ExprPart::FloatLiteral(a), ExprPart::IntLiteral(b)) => {
+                    Arc::new(ExprPart::FloatLiteral((*a).max(*b as f64)))
+                }
+                (ExprPart::IntLiteral(a), ExprPart::FloatLiteral(b)) => {
+                    Arc::new(ExprPart::FloatLiteral((*a as f64).max(*b)))
+                }
+                (ExprPart::FloatLiteral(a), ExprPart::FloatLiteral(b)) => {
+                    Arc::new(ExprPart::FloatLiteral((*a).max(*b)))
+                }
+
+                // Optimization: max(-c, measureText(...)) ≡ measureText(...)
+                // MeasureText is non-negative
+                (op, ExprPart::IntLiteral(c))
+                    if *c <= 0
+                        && matches!(op, ExprPart::Operation(ExprOp::MeasureTextX { .. })) =>
+                {
+                    a_expr.clone()
+                }
+                (ExprPart::IntLiteral(c), op)
+                    if *c <= 0
+                        && matches!(op, ExprPart::Operation(ExprOp::MeasureTextX { .. })) =>
+                {
+                    b_expr.clone()
+                }
+                (op, ExprPart::FloatLiteral(c))
+                    if *c <= 0.0
+                        && matches!(op, ExprPart::Operation(ExprOp::MeasureTextX { .. })) =>
+                {
+                    a_expr.clone()
+                }
+                (ExprPart::FloatLiteral(c), op)
+                    if *c <= 0.0
+                        && matches!(op, ExprPart::Operation(ExprOp::MeasureTextX { .. })) =>
+                {
+                    b_expr.clone()
+                }
+                (op, ExprPart::IntLiteral(c))
+                    if *c <= 0
+                        && matches!(op, ExprPart::Operation(ExprOp::MeasureTextY { .. })) =>
+                {
+                    a_expr.clone()
+                }
+                (ExprPart::IntLiteral(c), op)
+                    if *c <= 0
+                        && matches!(op, ExprPart::Operation(ExprOp::MeasureTextY { .. })) =>
+                {
+                    b_expr.clone()
+                }
+                (op, ExprPart::FloatLiteral(c))
+                    if *c <= 0.0
+                        && matches!(op, ExprPart::Operation(ExprOp::MeasureTextY { .. })) =>
+                {
+                    a_expr.clone()
+                }
+                (ExprPart::FloatLiteral(c), op)
+                    if *c <= 0.0
+                        && matches!(op, ExprPart::Operation(ExprOp::MeasureTextY { .. })) =>
+                {
+                    b_expr.clone()
+                }
+
                 (_, _) => expr,
             },
             // ExprOp::Abs { a } => unimplemented!(),
