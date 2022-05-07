@@ -50,13 +50,13 @@ pub extern "C" fn simplexp_op_new(
     .unwrap_or(null())
 }
 
-/// Creates a new float (f32) literal.
+/// Creates a new float (f64) literal.
 #[no_mangle]
-pub extern "C" fn simplexp_float_new(value: f32) -> *const ExprPart {
+pub extern "C" fn simplexp_float_new(value: f64) -> *const ExprPart {
     catch_unwind(|| {
         assert!(!value.is_nan());
 
-        let expr = if f32::is_finite(value) {
+        let expr = if f64::is_finite(value) {
             ExprPart::FloatLiteral(value)
         } else {
             ExprPart::Operation(ExprOp::Inf)

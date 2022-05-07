@@ -22,10 +22,10 @@ pub fn optimize(expr: Arc<ExprPart>) -> Arc<ExprPart> {
                     Arc::new(ExprPart::IntLiteral(a + b))
                 }
                 (ExprPart::FloatLiteral(a), ExprPart::IntLiteral(b)) => {
-                    Arc::new(ExprPart::FloatLiteral(a + *b as f32))
+                    Arc::new(ExprPart::FloatLiteral(a + *b as f64))
                 }
                 (ExprPart::IntLiteral(a), ExprPart::FloatLiteral(b)) => {
-                    Arc::new(ExprPart::FloatLiteral(*a as f32 + b))
+                    Arc::new(ExprPart::FloatLiteral(*a as f64 + b))
                 }
                 (ExprPart::FloatLiteral(a), ExprPart::FloatLiteral(b)) => {
                     Arc::new(ExprPart::FloatLiteral(a + b))
@@ -45,7 +45,7 @@ pub fn optimize(expr: Arc<ExprPart>) -> Arc<ExprPart> {
                     ExprPart::FloatLiteral(v) => {
                         optimize(Arc::new(ExprPart::Operation(ExprOp::Add {
                             a: left.clone(),
-                            b: Arc::new(ExprPart::FloatLiteral(v + *b as f32)),
+                            b: Arc::new(ExprPart::FloatLiteral(v + *b as f64)),
                         })))
                     }
                     _ => expr,
@@ -57,7 +57,7 @@ pub fn optimize(expr: Arc<ExprPart>) -> Arc<ExprPart> {
                     ExprPart::IntLiteral(v) => {
                         optimize(Arc::new(ExprPart::Operation(ExprOp::Add {
                             a: left.clone(),
-                            b: Arc::new(ExprPart::FloatLiteral(*v as f32 + b)),
+                            b: Arc::new(ExprPart::FloatLiteral(*v as f64 + b)),
                         })))
                     }
                     ExprPart::FloatLiteral(v) => {

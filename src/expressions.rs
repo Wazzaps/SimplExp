@@ -1,4 +1,4 @@
-use eq_float::F32;
+use eq_float::F64;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
@@ -126,21 +126,21 @@ macro_rules! define_ops {
 #[serde(untagged)]
 pub enum ExprPartRef {
     IntLiteral(i64),
-    #[serde(with = "F32Def")]
-    FloatLiteral(F32),
+    #[serde(with = "F64Def")]
+    FloatLiteral(F64),
     StringLiteral(String),
     Operation(ExprOpRef),
 }
 
 #[derive(Serialize)]
-#[serde(remote = "F32")]
-pub struct F32Def(pub f32);
+#[serde(remote = "F64")]
+pub struct F64Def(pub f64);
 
 #[derive(Serialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum ExprPart {
     IntLiteral(i64),
-    FloatLiteral(f32),
+    FloatLiteral(f64),
     StringLiteral(String),
     Operation(ExprOp),
 }
